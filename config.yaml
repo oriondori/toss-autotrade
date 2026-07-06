@@ -1,0 +1,41 @@
+dashboard:
+  password: topadmin1!
+  session_hours: 72
+live:
+  enabled: true
+  max_qty: 1
+  symbols:
+  - 086520
+paper:
+  initial_cash: 10000000
+risk:
+  daily_buy_limit: 4000000
+  daily_loss_cb: -0.02
+  max_daily_orders: 10
+  max_position_pct: 0.2
+  stop_loss: -0.03
+watchlist:
+- k: 0.9
+  name: 삼성전자
+  symbol: 005930
+- k: 0.9
+  name: 원익IPS
+  symbol: '240810'
+- k: 0.9
+  name: 기아
+  symbol: '000270'
+- k: 0.8
+  name: 한미반도체
+  symbol: '042700'
+- k: 0.05
+  name: 에코프로
+  symbol: 086520
+- k: 0.9
+  name: LG에너지솔루션
+  symbol: '373220'
+- k: 0.5
+  name: LS
+  symbol: '006260'
+- k: 0.9
+  name: DB손해보험
+  symbol: 005830

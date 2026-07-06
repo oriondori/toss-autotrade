@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>TossAutoTrade 화면설계서</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #222; }
+
+  /* 문서 헤더 */
+  .doc-header {
+    background: #1a1a2e; color: #fff; padding: 32px 48px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .doc-header h1 { font-size: 22px; font-weight: 700; }
+  .doc-header p { font-size: 13px; color: #aaa; margin-top: 4px; }
+  .doc-meta { text-align: right; font-size: 12px; color: #aaa; line-height: 1.8; }
+
+  /* 섹션 */
+  .section { padding: 40px 48px; }
+  .section-title {
+    font-size: 15px; font-weight: 700; color: #555;
+    border-left: 4px solid #3b82f6; padding-left: 12px;
+    margin-bottom: 24px; text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* 화면 카드 */
+  .screen-card {
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    margin-bottom: 48px; overflow: hidden;
+  }
+  .screen-label {
+    background: #1e293b; color: #94a3b8;
+    padding: 10px 20px; font-size: 11px; font-weight: 600;
+    letter-spacing: 2px; display: flex; align-items: center; gap: 10px;
+  }
+  .screen-label span { background: #3b82f6; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 10px; }
+
+  /* 실제 대시보드 UI */
+  .dash {
+    background: #0f172a; color: #e2e8f0;
+    font-size: 13px; padding: 0;
+  }
+
+  /* 네비게이션 */
+  .dash-nav {
+    background: #1e293b; padding: 0 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #334155; height: 52px;
+  }
+  .dash-nav .logo { font-weight: 700; color: #38bdf8; font-size: 15px; }
+  .dash-nav .tabs { display: flex; gap: 4px; }
+  .dash-nav .tab {
+    padding: 6px 14px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; color: #94a3b8; transition: all .2s;
+  }
+  .dash-nav .tab.active { background: #3b82f6; color: #fff; }
+  .dash-nav .controls { display: flex; gap: 8px; align-items: center; }
+  .dash-nav .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 4px; }
+  .dash-nav .status-text { font-size: 12px; color: #94a3b8; }
+  .btn { padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: 600; }
+  .btn-pause { background: #334155; color: #94a3b8; }
+  .btn-kill { background: #7f1d1d; color: #fca5a5; }
+
+  /* 콘텐츠 영역 */
+  .dash-body { padding: 20px; }
+
+  /* 카드 그리드 */
+  .cards { display: grid; gap: 12px; margin-bottom: 16px; }
+  .cards-4 { grid-template-columns: repeat(4, 1fr); }
+  .cards-3 { grid-template-columns: repeat(3, 1fr); }
+  .cards-6 { grid-template-columns: repeat(6, 1fr); }
+  .card {
+    background: #1e293b; border-radius: 10px; padding: 16px;
+    border: 1px solid #334155;
+  }
+  .card .label { font-size: 10px; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .value { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+  .card .value.up { color: #f87171; }
+  .card .value.down { color: #60a5fa; }
+  .card .value.green { color: #34d399; }
+
+  /* 패널 */
+  .panel {
+    background: #1e293b; border-radius: 10px; padding: 16px;
+    border: 1px solid #334155; margin-bottom: 12px;
+  }
+  .panel h3 { font-size: 12px; color: #94a3b8; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* 차트 플레이스홀더 */
+  .chart-placeholder {
+    height: 100px; background: #0f172a; border-radius: 6px;
+    display: flex; align-items: flex-end; padding: 8px; gap: 3px;
+  }
+  .bar { flex: 1; border-radius: 2px 2px 0 0; opacity: 0.8; }
+  .bar.pos { background: #f87171; }
+  .bar.neg { background: #60a5fa; }
+
+  /* 테이블 */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl th { color: #64748b; font-weight: 600; text-align: left; padding: 6px 10px; border-bottom: 1px solid #334155; font-size: 10px; text-transform: uppercase; }
+  .tbl td { padding: 7px 10px; border-bottom: 1px solid #1e293b80; color: #cbd5e1; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: #ffffff08; }
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  }
+  .badge.buy { background: #7f1d1d; color: #fca5a5; }
+  .badge.sell { background: #1e3a5f; color: #93c5fd; }
+  .badge.paper { background: #1e3a5f; color: #93c5fd; }
+  .badge.info { background: #14532d; color: #86efac; }
+  .badge.warn { background: #713f12; color: #fde68a; }
+  .badge.error { background: #7f1d1d; color: #fca5a5; }
+  .empty-row td { text-align: center; color: #475569; padding: 20px; }
+
+  /* 선택된 종목 하이라이트 */
+  .tbl tr.selected td { background: #1e3a5f30; }
+
+  /* 점수 바 */
+  .score-bar { display: flex; align-items: center; gap: 6px; }
+  .score-bar .bar-bg { flex: 1; height: 4px; background: #334155; border-radius: 2px; }
+  .score-bar .bar-fill { height: 4px; background: #3b82f6; border-radius: 2px; }
+  .score-bar .num { font-size: 11px; color: #94a3b8; min-width: 24px; }
+
+  /* 로그 레벨 */
+  .log-filter { display: flex; gap: 8px; margin-bottom: 12px; }
+  .log-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid #334155; background: none; color: #64748b; font-size: 11px; cursor: pointer; }
+  .log-btn.active { background: #334155; color: #e2e8f0; }
+
+  /* 주석 레이어 */
+  .annotation {
+    background: #fefce8; border: 1px solid #fde68a; border-radius: 6px;
+    padding: 10px 14px; margin-top: 12px; font-size: 12px; color: #78350f;
+  }
+  .annotation strong { display: block; margin-bottom: 4px; }
+
+  /* 구분선 */
+  .divider { text-align: center; margin: 16px 0; }
+  .divider span {
+    background: #0f172a; color: #3b82f6; font-size: 11px; font-weight: 700;
+    padding: 4px 12px; border: 1px solid #3b82f6; border-radius: 20px;
+  }
+
+  /* 스캐너 선택 구분 */
+  .scan-section { font-size: 11px; color: #3b82f6; font-weight: 700; padding: 6px 10px; background: #1e3a5f20; border-radius: 4px; margin: 8px 0 4px; }
+
+  /* 버튼 */
+  .btn-scan { background: #3b82f6; color: #fff; padding: 7px 16px; border-radius: 7px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-add { background: none; border: 1px solid #3b82f6; color: #3b82f6; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+
+  /* 설정 폼 스타일 */
+  .risk-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #334155; }
+  .risk-row:last-child { border-bottom: none; }
+  .risk-label { font-size: 12px; color: #94a3b8; }
+  .risk-val { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+  .risk-desc { font-size: 10px; color: #475569; text-align: right; }
+
+  /* 화면 번호 */
+  .screen-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #3b82f6; color: #fff; font-size: 11px; font-weight: 700;
+  }
+
+  /* 2컬럼 */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* 포지션 카드 */
+  .pos-card {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    padding: 12px;
+  }
+  .pos-card .sym { font-size: 11px; color: #64748b; }
+  .pos-card .name { font-size: 13px; font-weight: 700; margin: 2px 0 8px; }
+  .pos-card .row { display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; }
+  .pos-card .row .k { color: #64748b; }
+  .pos-card .row .v { color: #cbd5e1; }
+
+  /* 하단 여백 */
+  .spacer { height: 60px; }
+</style>
+</head>
+<body>
+
+<!-- 문서 헤더 -->
+<div class="doc-header">
+  <div>
+    <h1>📊 TossAutoTrade — 화면설계서</h1>
+    <p>토스증권 변동성 돌파 자동매매 대시보드 UI 설계</p>
+  </div>
+  <div class="doc-meta">
+    <div>버전: v1.0</div>
+    <div>작성일: 2026-07-02</div>
+    <div>대상: localhost:8000</div>
+    <div>탭: 5개 화면</div>
+  </div>
+</div>
+
+<!-- 화면 1 : 홈 -->
+<div class="section">
+  <div class="section-title"><span class="screen-num">1</span> &nbsp;홈 (기본 화면)</div>
+  <div class="screen-card">
+    <div class="screen-label">
+      <span>SCREEN 01</span> 홈 — 실시간 요약 · 시그널 · 포지션 · 주문내역
+    </div>
+    <div class="dash">
+      <!-- 네비 -->
+      <div class="dash-nav">
+        <div class="logo">📈 TossAutoTrade</div>
+        <div class="tabs">
+          <div class="tab active">홈</div>
+          <div class="tab">📈 페이퍼</div>
+          <div class="tab">🔍 스캐너</div>
+          <div class="tab">전략설정</div>
+          <div class="tab">로그</div>
+        </div>
+        <div class="controls">
+          <span class="status-dot"></span><span class="status-text">실행중</span>
+          <button class="btn btn-pause">⏸ 정지</button>
+          <button class="btn btn-kill">🛑 킬스위치</button>
+        </div>
+      </div>
+      <div class="dash-body">
+        <!-- 상단 카드 -->
+        <div class="cards cards-4">
+          <div class="card"><div class="label">총 자산</div><div class="value">10,000,000<span style="font-size:11px;color:#64748b">원</span></div></div>
+          <div class="card"><div class="label">오늘 손익</div><div class="value green">+0원</div></div>
+          <div class="card"><div class="label">오늘 주문</div><div class="value">0건</div></div>
+          <div class="card"><div class="label">체결</div><div class="value">0건</div></div>
+        </div>
+        <!-- 차트 -->
+        <div class="panel">
+          <h3>📊 최근 30일 손익</h3>
+          <div class="chart-placeholder">
+            <div class="bar pos" style="height:30%"></div>
+            <div class="bar neg" style="height:15%"></div>
+            <div class="bar pos" style="height:55%"></div>
+            <div class="bar pos" style="height:70%"></div>
+            <div class="bar neg" style="height:20%"></div>
+            <div class="bar pos" style="height:40%"></div>
+            <div class="bar pos" style="height:85%"></div>
+            <div class="bar neg" style="height:10%"></div>
+            <div class="bar pos" style="height:60%"></div>
+            <div class="bar pos" style="height:45%"></div>
+            <div class="bar neg" style="height:25%"></div>
+            <div class="bar pos" style="height:90%"></div>
+            <div class="bar pos" style="height:35%"></div>
+            <div class="bar neg" style="height:30%"></div>
+            <div class="bar pos" style="height:50%"></div>
+          </div>
+        </div>
+        <!-- 시그널 -->
+        <div class="panel">
+          <h3>⚡ 오늘 시그널</h3>
+          <table class="tbl">
+            <tr><th>시각</th><th>종목</th><th>신호</th><th>현재가</th><th>목표가</th><th>K값</th></tr>
+            <tr>
+              <td>09:01:32</td><td>삼성전자</td>
+              <td><span class="badge buy">BUY</span></td>
+              <td>62,000</td><td>63,500</td><td>0.9</td>
+            </tr>
+            <tr><td colspan="6" class="empty-row" style="color:#475569;padding:10px">장 시작 전 또는 시그널 없음</td></tr>
+          </table>
+        </div>
+        <!-- 2컬럼 -->
+        <div class="two-col">
+          <div class="panel">
+            <h3>💼 보유 종목</h3>
+            <table class="tbl">
+              <tr><th>종목</th><th>수량</th><th>평균가</th><th>손익</th></tr>
+              <tr><td colspan="4" class="empty-row">보유 포지션 없음</td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>📋 주문 내역 (최근)</h3>
+            <table class="tbl">
+              <tr><th>시각</th><th>종목</th><th>구분</th><th>상태</th></tr>
+              <tr><td colspan="4" class="empty-row">주문 없음</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <strong>📌 설계 메모</strong>
+    • 10초마다 자동 갱신 (fetch /api/status, /api/summary, /api/signals, /api/positions, /api/orders)<br>
+    • 손익 차트: 30일 daily_pnl DB 기준, 양수=빨강(수익), 음수=파랑(손실)<br>
+    • 킬스위치 클릭 시 confirm 팝업 후 POST /api/control/kill
+  </div>
+</div>
+
+<!-- 화면 2 : 페이퍼 -->
+<div class="section">
+  <div class="section-title"><span class="screen-num">2</span> &nbsp;📈 페이퍼 트레이딩</div>
+  <div class="screen-card">
+    <div class="screen-label"><span>SCREEN 02</span> 페이퍼 — 가상 포트폴리오 현황</div>
+    <div class="dash">
+      <div class="dash-nav">
+        <div class="logo">📈 TossAutoTrade</div>
+        <div class="tabs">
+          <div class="tab">홈</div>
+          <div class="tab active">📈 페이퍼</div>
+          <div class="tab">🔍 스캐너</div>
+          <div class="tab">전략설정</div>
+          <div class="tab">로그</div>
+        </div>
+        <div class="controls">
+          <span class="status-dot"></span><span class="status-text">실행중</span>
+          <button class="btn btn-pause">⏸ 정지</button>
+          <button class="btn btn-kill">🛑 킬스위치</button>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div class="cards cards-3">
+          <div class="card"><div class="label">총 평가금액</div><div class="value">10,000,000원</div></div>
+          <div class="card"><div class="label">총 손익</div><div class="value green">+0원</div></div>
+          <div class="card"><div class="label">수익률</div><div class="value green">0.00%</div></div>
+        </div>
+        <div class="cards cards-3">
+          <div class="card"><div class="label">오늘 실현손익</div><div class="value">+0원</div></div>
+          <div class="card"><div class="label">보유 현금</div><div class="value">10,000,000원</div></div>
+          <div class="card"><div class="label">오늘 주문 수</div><div class="value">0건</div></div>
+        </div>
+        <div class="panel">
+          <h3>💼 보유 포지션</h3>
+          <table class="tbl">
+            <tr><th>종목코드</th><th>종목명</th><th>수량</th><th>평균매수가</th><th>현재가</th><th>평가손익</th><th>수익률</th></tr>
+            <tr>
+              <td>005930</td><td>삼성전자</td><td>16주</td>
+              <td>62,000</td><td>63,500</td>
+              <td style="color:#f87171">+24,000</td>
+              <td style="color:#f87171">+2.42%</td>
+            </tr>
+            <tr><td colspan="7" class="empty-row">장중 매수 시 여기에 표시</td></tr>
+          </table>
+        </div>
+        <div class="panel">
+          <h3>📅 일별 수익 기록</h3>
+          <table class="tbl">
+            <tr><th>날짜</th><th>총 자산</th><th>실현 손익</th><th>수익률</th><th>주문 수</th></tr>
+            <tr>
+              <td>2026-07-02</td><td>10,000,000</td>
+              <td style="color:#34d399">+0</td><td style="color:#34d399">0.00%</td><td>0건</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <strong>📌 설계 메모</strong>
+    • 데이터 소스: GET /api/paper → engine/paper.py 상태 읽기<br>
+    • paper_state.json에 영속화 — 서버 재시작해도 포지션 유지<br>
+    • 10초마다 자동 갱신
+  </div>
+</div>
+
+<!-- 화면 3 : 스캐너 -->
+<div class="section">
+  <div class="section-title"><span class="screen-num">3</span> &nbsp;🔍 스캐너</div>
+  <div class="screen-card">
+    <div class="screen-label"><span>SCREEN 03</span> 스캐너 — 165개 종목 자동 스크리닝</div>
+    <div class="dash">
+      <div class="dash-nav">
+        <div class="logo">📈 TossAutoTrade</div>
+        <div class="tabs">
+          <div class="tab">홈</div>
+          <div class="tab">📈 페이퍼</div>
+          <div class="tab active">🔍 스캐너</div>
+          <div class="tab">전략설정</div>
+          <div class="tab">로그</div>
+        </div>
+        <div class="controls">
+          <span class="status-dot"></span><span class="status-text">실행중</span>
+          <button class="btn btn-pause">⏸ 정지</button>
+          <button class="btn btn-kill">🛑 킬스위치</button>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+          <button class="btn-scan">🔍 스캔 실행</button>
+          <span style="font-size:11px;color:#475569">마지막 스캔: 2026-07-02 14:32:10 · 165개 종목</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;margin-left:auto">
+            <input type="checkbox" checked> 데이터 있는 종목만
+          </label>
+        </div>
+
+        <div class="scan-section">✅ 선택된 종목 (5개)</div>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <table class="tbl">
+            <tr><th>코드</th><th>종목명</th><th>현재가</th><th>변동폭 %</th><th>거래대금(억)</th><th>점수</th><th></th></tr>
+            <tr class="selected">
+              <td style="color:#64748b">005930</td><td><b>삼성전자</b></td>
+              <td>62,000</td><td style="color:#f87171">2.1%</td><td>8,240</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:72%"></div></div><div class="num">72</div></div></td>
+              <td><span class="badge paper">✅ 선택됨</span></td>
+            </tr>
+            <tr class="selected">
+              <td style="color:#64748b">000660</td><td><b>SK하이닉스</b></td>
+              <td>190,000</td><td style="color:#f87171">3.4%</td><td>4,510</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:81%"></div></div><div class="num">81</div></div></td>
+              <td><span class="badge paper">✅ 선택됨</span></td>
+            </tr>
+            <tr class="selected">
+              <td style="color:#64748b">000270</td><td><b>기아</b></td>
+              <td>105,000</td><td style="color:#f87171">2.8%</td><td>2,310</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:68%"></div></div><div class="num">68</div></div></td>
+              <td><span class="badge paper">✅ 선택됨</span></td>
+            </tr>
+            <tr class="selected">
+              <td style="color:#64748b">012450</td><td><b>한화에어로스페이스</b></td>
+              <td>380,000</td><td style="color:#f87171">4.1%</td><td>1,820</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:77%"></div></div><div class="num">77</div></div></td>
+              <td><span class="badge paper">✅ 선택됨</span></td>
+            </tr>
+            <tr class="selected">
+              <td style="color:#64748b">086520</td><td><b>에코프로</b></td>
+              <td>95,000</td><td style="color:#f87171">5.3%</td><td>3,120</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:85%"></div></div><div class="num">85</div></div></td>
+              <td><span class="badge paper">✅ 선택됨</span></td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="scan-section" style="color:#94a3b8">📋 전체 종목 (160개 · 점수 순)</div>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <table class="tbl">
+            <tr><th>코드</th><th>종목명</th><th>현재가</th><th>변동폭 %</th><th>거래대금(억)</th><th>점수</th><th></th></tr>
+            <tr>
+              <td style="color:#64748b">247540</td><td>에코프로비엠</td>
+              <td>150,000</td><td style="color:#f87171">4.8%</td><td>2,910</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:83%"></div></div><div class="num">83</div></div></td>
+              <td><button class="btn-add">+ 추가</button></td>
+            </tr>
+            <tr>
+              <td style="color:#64748b">042700</td><td>한미반도체</td>
+              <td>85,000</td><td style="color:#f87171">3.9%</td><td>1,240</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:75%"></div></div><div class="num">75</div></div></td>
+              <td><button class="btn-add">+ 추가</button></td>
+            </tr>
+            <tr>
+              <td style="color:#64748b">058470</td><td>리노공업</td>
+              <td>230,000</td><td style="color:#f87171">3.2%</td><td>890</td>
+              <td><div class="score-bar"><div class="bar-bg"><div class="bar-fill" style="width:69%"></div></div><div class="num">69</div></div></td>
+              <td><button class="btn-add">+ 추가</button></td>
+            </tr>
+            <tr><td colspan="7" style="text-align:center;color:#475569;padding:8px;font-size:11px">... 이하 157개 종목 생략 ...</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <strong>📌 설계 메모</strong>
+    • 점수 = 변동폭 점수(0~50) + 거래대금 점수(0~50) · 높을수록 변동성 돌파에 유리<br>
+    • [+ 추가] 클릭 → K값 입력 프롬프트 → POST /api/scanner/add → config.yaml 업데이트 → 30초 내 봇 반영<br>
+    • 장 외 시간에는 현재가 없음(None) · DB 캔들 기반 점수만 표시
+  </div>
+</div>
+
+<!-- 화면 4 : 전략설정 -->
+<div class="section">
+  <div class="section-title"><span class="screen-num">4</span> &nbsp;전략 설정</div>
+  <div class="screen-card">
+    <div class="screen-label"><span>SCREEN 04</span> 전략 설정 — config.yaml 현황 조회</div>
+    <div class="dash">
+      <div class="dash-nav">
+        <div class="logo">📈 TossAutoTrade</div>
+        <div class="tabs">
+          <div class="tab">홈</div>
+          <div class="tab">📈 페이퍼</div>
+          <div class="tab">🔍 스캐너</div>
+          <div class="tab active">전략설정</div>
+          <div class="tab">로그</div>
+        </div>
+        <div class="controls">
+          <span class="status-dot"></span><span class="status-text">실행중</span>
+          <button class="btn btn-pause">⏸ 정지</button>
+          <button class="btn btn-kill">🛑 킬스위치</button>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div class="cards cards-6" style="margin-bottom:14px">
+          <div class="card"><div class="label">감시 종목</div><div class="value">5개</div></div>
+          <div class="card"><div class="label">초기 자산</div><div class="value" style="font-size:14px">1,000만원</div></div>
+          <div class="card"><div class="label">일 매수 한도</div><div class="value" style="font-size:14px">100만원</div></div>
+          <div class="card"><div class="label">종목당 비중</div><div class="value">10%</div></div>
+          <div class="card"><div class="label">손절선</div><div class="value up">-3%</div></div>
+          <div class="card"><div class="label">일손실 CB</div><div class="value up">-2%</div></div>
+        </div>
+
+        <div class="two-col">
+          <div class="panel">
+            <h3>📋 감시 종목 (Watchlist)</h3>
+            <table class="tbl">
+              <tr><th>코드</th><th>종목명</th><th>K값</th><th>전략</th></tr>
+              <tr><td style="color:#64748b">005930</td><td><b>삼성전자</b></td><td><span class="badge paper">0.9</span></td><td style="color:#64748b">변동성 돌파</td></tr>
+              <tr><td style="color:#64748b">000660</td><td><b>SK하이닉스</b></td><td><span class="badge paper">0.8</span></td><td style="color:#64748b">변동성 돌파</td></tr>
+              <tr><td style="color:#64748b">000270</td><td><b>기아</b></td><td><span class="badge paper">0.9</span></td><td style="color:#64748b">변동성 돌파</td></tr>
+              <tr><td style="color:#64748b">012450</td><td><b>한화에어로스페이스</b></td><td><span class="badge paper">0.8</span></td><td style="color:#64748b">변동성 돌파</td></tr>
+              <tr><td style="color:#64748b">086520</td><td><b>에코프로</b></td><td><span class="badge paper">0.9</span></td><td style="color:#64748b">변동성 돌파</td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>⚙️ 리스크 설정</h3>
+            <div class="risk-row">
+              <span class="risk-label">종목당 최대 비중</span>
+              <div style="text-align:right"><div class="risk-val">10%</div><div class="risk-desc">총자산 대비 매수 한도</div></div>
+            </div>
+            <div class="risk-row">
+              <span class="risk-label">일 최대 매수금액</span>
+              <div style="text-align:right"><div class="risk-val">1,000,000원</div><div class="risk-desc">하루 누적 매수 한도</div></div>
+            </div>
+            <div class="risk-row">
+              <span class="risk-label">손절선</span>
+              <div style="text-align:right"><div class="risk-val" style="color:#f87171">-3%</div><div class="risk-desc">매수가 대비 강제 청산</div></div>
+            </div>
+            <div class="risk-row">
+              <span class="risk-label">일손실 서킷브레이커</span>
+              <div style="text-align:right"><div class="risk-val" style="color:#f87171">-2%</div><div class="risk-desc">신규 매수 차단</div></div>
+            </div>
+            <div class="risk-row">
+              <span class="risk-label">일 최대 주문 건수</span>
+              <div style="text-align:right"><div class="risk-val">20건</div><div class="risk-desc">하루 체결 상한</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="font-size:12px;color:#64748b;line-height:1.8">
+          <h3>💡 설정 변경 방법</h3>
+          <div style="margin-top:8px">
+            <code style="background:#0f172a;color:#38bdf8;padding:2px 6px;border-radius:4px">config.yaml</code>
+            파일을 수정하면 <b style="color:#94a3b8">30초 내 자동 반영</b>됩니다. 서버 재시작 불필요.<br>
+            종목 추가는 <b style="color:#94a3b8">🔍 스캐너 탭 → [+ 추가]</b> 버튼을 이용하세요.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <strong>📌 설계 메모</strong>
+    • 데이터 소스: GET /api/config → config.yaml 실시간 읽기 (페이지 로드 시 1회)<br>
+    • 현재 읽기 전용. 향후 인라인 수정 기능 추가 가능
+  </div>
+</div>
+
+<!-- 화면 5 : 로그 -->
+<div class="section">
+  <div class="section-title"><span class="screen-num">5</span> &nbsp;로그</div>
+  <div class="screen-card">
+    <div class="screen-label"><span>SCREEN 05</span> 로그 — 봇 실시간 동작 기록</div>
+    <div class="dash">
+      <div class="dash-nav">
+        <div class="logo">📈 TossAutoTrade</div>
+        <div class="tabs">
+          <div class="tab">홈</div>
+          <div class="tab">📈 페이퍼</div>
+          <div class="tab">🔍 스캐너</div>
+          <div class="tab">전략설정</div>
+          <div class="tab active">로그</div>
+        </div>
+        <div class="controls">
+          <span class="status-dot"></span><span class="status-text">실행중</span>
+          <button class="btn btn-pause">⏸ 정지</button>
+          <button class="btn btn-kill">🛑 킬스위치</button>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div class="log-filter">
+          <button class="log-btn active">전체</button>
+          <button class="log-btn">INFO</button>
+          <button class="log-btn">WARN</button>
+          <button class="log-btn">ERROR</button>
+        </div>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <table class="tbl">
+            <tr><th>시각</th><th>레벨</th><th>카테고리</th><th>메시지</th></tr>
+            <tr>
+              <td style="color:#475569;font-size:11px">2026-07-02 15:30:02</td>
+              <td><span class="badge info">INFO</span></td>
+              <td style="color:#64748b">EXEC</td>
+              <td>전 종목 장 마감 청산 완료 (보유 없음)</td>
+            </tr>
+            <tr>
+              <td style="color:#475569;font-size:11px">2026-07-02 09:05:14</td>
+              <td><span class="badge warn">WARN</span></td>
+              <td style="color:#64748b">RISK</td>
+              <td>005930 일 매수한도 80% 도달 (800,000 / 1,000,000)</td>
+            </tr>
+            <tr>
+              <td style="color:#475569;font-size:11px">2026-07-02 09:01:32</td>
+              <td><span class="badge info">INFO</span></td>
+              <td style="color:#64748b">EXEC</td>
+              <td>005930 매수 신호 — 목표가 63,500 도달, 16주 체결</td>
+            </tr>
+            <tr>
+              <td style="color:#475569;font-size:11px">2026-07-02 09:00:00</td>
+              <td><span class="badge info">INFO</span></td>
+              <td style="color:#64748b">BOT</td>
+              <td>봇 루프 시작 — 감시종목 5개, 세션: OPEN</td>
+            </tr>
+            <tr>
+              <td style="color:#475569;font-size:11px">2026-07-01 15:30:05</td>
+              <td><span class="badge info">INFO</span></td>
+              <td style="color:#64748b">BOT</td>
+              <td>일일 리포트 전송 완료 (Telegram)</td>
+            </tr>
+            <tr><td colspan="4" style="text-align:center;color:#475569;padding:8px;font-size:11px">... 이하 95건 생략 ...</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="annotation">
+    <strong>📌 설계 메모</strong>
+    • 데이터 소스: GET /api/logs?limit=100&level={필터}<br>
+    • 10초마다 자동 갱신 · 레벨 필터 클릭 시 즉시 재요청<br>
+    • ERROR 레벨은 Telegram 알림도 동시 발송
+  </div>
+</div>
+
+<div class="spacer"></div>
+</body>
+</html>

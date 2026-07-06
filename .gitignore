@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+*.db
+.venv/
+venv/
+paper_state.json
+logs/
+__pycache__/
+.claude/settings.local.json
