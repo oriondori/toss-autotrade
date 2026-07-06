@@ -8,3 +8,4 @@ paper_state.json
 logs/
 __pycache__/
 .claude/settings.local.json
+backup/
