@@ -104,6 +104,7 @@ def login_page():
 _acct_cache: dict = {
     "market_value": None,
     "unrealized_pnl": None,
+    "daily_pnl": None,
     "cash_krw": None,
     "items": [],
     "overview": None,
@@ -161,6 +162,7 @@ def _refresh_acct_cache() -> bool:
         if isinstance(result, dict):
             _acct_cache["market_value"]   = _unwrap_krw(result.get("marketValue"))
             _acct_cache["unrealized_pnl"] = _unwrap_krw(result.get("profitLoss"))
+            _acct_cache["daily_pnl"]      = _unwrap_krw(result.get("dailyProfitLoss"))
             _acct_cache["overview"]       = {k: v for k, v in result.items() if k != "items"}
             _acct_cache["items"]          = result.get("items", [])
         cash = float(acct.buying_power("KRW"))
@@ -198,7 +200,7 @@ def summary() -> dict:
         "market_value":       mv,
         "cash_krw":           csh,
         "unrealized_pnl":     c["unrealized_pnl"],
-        "today_realized_pnl": 0,
+        "today_realized_pnl": c.get("daily_pnl"),  # 브로커 실제 당일 손익(실현+평가 변동) — 하드코딩 0 제거
         "orders_today":       len(orders_today),
         "orders_filled":      filled,
         "orders_pending":     pending,

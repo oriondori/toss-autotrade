@@ -43,7 +43,6 @@ def run_tick(watchlist: list[dict], market, risk: RiskManager,
     live_cfg = live_cfg or {}
     live_enabled = live_cfg.get("enabled", False)
     live_symbols: set[str] = set(live_cfg.get("symbols", []))
-    live_max_qty: int = int(live_cfg.get("max_qty", 1))
 
     sess = session()
     today = today_str()
@@ -148,8 +147,9 @@ def run_tick(watchlist: list[dict], market, risk: RiskManager,
                 "eod_sell_sent": False,
             }
             t_str = f"{target:,.0f}" if target else "N/A (no prev candle)"
+            tag = "LIVE" if (live_enabled and sym in live_symbols) else "PAPER"
             db.log("INFO", "SIGNAL",
-                   f"[PAPER] {sym} day open≈{open_price:,.0f}  "
+                   f"[{tag}] {sym} day open≈{open_price:,.0f}  "
                    f"K={k}  target={t_str}")
 
         d = _daily[sym]
@@ -207,9 +207,17 @@ def run_tick(watchlist: list[dict], market, risk: RiskManager,
                 and price >= d["target"]):
 
             if is_live and _order_client:
-                # ── 실주문 분기 ──
-                qty = min(live_max_qty, risk.calc_qty(price, price * live_max_qty * 10, snap))
-                qty = max(1, min(qty, live_max_qty))
+                # ── 실주문 분기: 실자산 기준 포지션 사이징, 실제 예수금이 최종 한도 ──
+                asset = _real_total_asset()
+                cash = _real_cash()
+                live_stats = _live_daily_stats()
+                qty = risk.calc_qty(price, asset, live_stats)
+                live_snap = {**live_stats, "cash": cash, "initial_cash": asset, "today_realized": 0}
+                ok, reason = risk.can_buy(sym, price, qty, live_snap,
+                                          order_count=live_stats["order_count"])
+                if not ok:
+                    db.log("WARN", "RISK", f"[LIVE] {sym} buy rejected: {reason}")
+                    continue
                 result = _order_client.buy(sym, name, price, qty)
                 if result["ok"]:
                     d["signaled"] = True
@@ -265,6 +273,31 @@ def _live_qty_held(symbol: str, market) -> int:
     except Exception:
         pass
     return 1
+
+
+def _real_total_asset() -> float:
+    """실계좌 총자산(원화 보유종목 평가금액 + 예수금). 포지션 사이징(%) 기준.
+    webapp.server의 60초 캐시를 재사용 — ACCOUNT API는 1 TPS라 종목별 직접 호출 금지."""
+    from webapp.server import _get_acct
+    c = _get_acct()
+    return (c.get("market_value") or 0.0) + (c.get("cash_krw") or 0.0)
+
+
+def _real_cash() -> float:
+    """실계좌 예수금(주문가능금액). 최종 매수 가능 여부 판단 기준."""
+    from webapp.server import _get_acct
+    c = _get_acct()
+    return c.get("cash_krw") or 0.0
+
+
+def _live_daily_stats() -> dict:
+    """오늘자 live 주문 기준 매수금액·건수 집계 (risk 체크용 — 페이퍼 카운터와 분리)."""
+    today = today_str()
+    orders_today = [o for o in db.recent("orders", 300)
+                    if o.get("mode") == "live" and o["ts"].startswith(today)]
+    buy_amount = sum((o.get("price") or 0) * (o.get("qty") or 0)
+                     for o in orders_today if o.get("side") == "BUY")
+    return {"today_buy_amount": buy_amount, "order_count": len(orders_today)}
 
 
 def _send_briefing(watchlist: list[dict], prices: dict[str, float]) -> None:

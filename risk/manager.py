@@ -21,9 +21,14 @@ class RiskManager:
         return max(1, math.floor(budget / price))
 
     def can_buy(self, symbol: str, price: float, qty: int,
-                snap: dict) -> tuple[bool, str]:
-        """Returns (allowed, reason). reason is empty string when allowed."""
-        if paper.today_orders() >= self.max_daily_orders:
+                snap: dict, order_count: int | None = None) -> tuple[bool, str]:
+        """Returns (allowed, reason). reason is empty string when allowed.
+
+        order_count: 오늘 주문 건수. 생략 시 페이퍼 건수 사용(페이퍼 호출용).
+                     실주문 호출 시에는 실제 live 주문 건수를 넘겨야 함."""
+        if order_count is None:
+            order_count = paper.today_orders()
+        if order_count >= self.max_daily_orders:
             return False, f"Daily order limit reached ({self.max_daily_orders})"
 
         cost = price * qty

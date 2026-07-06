@@ -3,9 +3,15 @@ dashboard:
   session_hours: 72
 live:
   enabled: true
-  max_qty: 1
   symbols:
+  - 005930
+  - '240810'
+  - '000270'
+  - '042700'
   - 086520
+  - '373220'
+  - '006260'
+  - 005830
 paper:
   initial_cash: 10000000
 risk:
@@ -27,7 +33,7 @@ watchlist:
 - k: 0.8
   name: 한미반도체
   symbol: '042700'
-- k: 0.05
+- k: 0.9
   name: 에코프로
   symbol: 086520
 - k: 0.9
