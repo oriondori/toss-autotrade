@@ -515,12 +515,19 @@ document.querySelectorAll('.nav-item').forEach(b => b.onclick = () => {
 });
 
 /* 제어 */
+let userRole = 'admin';
+function requireAdmin() {
+  if (userRole !== 'admin') { alert('권한없음'); return false; }
+  return true;
+}
 $('btn-kill').onclick = async () => {
+  if (!requireAdmin()) return;
   if (!confirm('🛑 긴급 중단: 신규 주문 차단 + 루프 정지. 실행할까요?')) return;
   await fetch('/api/control/kill', {method:'POST'}); refreshStatus();
 };
 let paused = false;
 $('btn-pause').onclick = async () => {
+  if (!requireAdmin()) return;
   await fetch('/api/control/' + (paused ? 'resume' : 'pause'), {method:'POST'}); refreshStatus();
 };
 
@@ -601,6 +608,7 @@ async function refreshStatus() {
       `<span class="dot a"></span>장: <b>${esc(s.market_session)}</b><br>` +
       `${dot(!s.circuit_breaker)}CB: <b>${s.circuit_breaker?'발동!':'정상'}</b><br>` +
       `<b style="color:${liveMode?'#ff6b6b':'#2ea043'}">${liveMode?'🔴 LIVE 실전':'🟢 PAPER 모의'}</b>`;
+    userRole = s.role || 'admin';
   } catch { $('side-status').innerHTML = '<span class="dot r"></span>서버 연결 끊김'; }
 }
 
@@ -786,6 +794,7 @@ async function refreshLogs() {
 
 /* ── 스캐너 ── */
 async function triggerScan() {
+  if (!requireAdmin()) return;
   $('btn-scan').textContent = '⏳ 스캔 중...';
   $('btn-scan').disabled = true;
   try {
@@ -807,6 +816,7 @@ async function triggerScan() {
 }
 
 async function addToWatchlist(symbol, name) {
+  if (!requireAdmin()) return;
   const k = prompt(`${name}(${symbol}) 워치리스트 추가\nK값 입력 (0.1~0.9):`, '0.5');
   if (k === null) return;
   const kv = parseFloat(k);
@@ -862,6 +872,7 @@ function _scanRow(r, isSelected) {
 }
 
 async function collectCandles(symbol, name, btn) {
+  if (!requireAdmin()) return;
   if (_collectingSet.has(symbol)) return;
   _collectingSet.add(symbol);
   if (btn) { btn.textContent = '⏳ 수집 중...'; btn.disabled = true; btn.style.color = 'var(--muted)'; }
@@ -1468,6 +1479,7 @@ async function refreshRiskGauge() {
 let _recPollInterval = null;
 
 async function runRecommendation() {
+  if (!requireAdmin()) return;
   const btn = document.querySelector('#recommend .btn.primary');
   if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; }
   await fetch('/api/recommendations/run', {method:'POST'});
@@ -1485,6 +1497,7 @@ async function runRecommendation() {
 }
 
 async function replaceStock(removeSymbol, removeName, addSymbol, addName, k) {
+  if (!requireAdmin()) return;
   if (!confirm(`[${removeName}] → [${addName}] 으로 교체할까요?\nK값: ${k}`)) return;
   const r = await fetch('/api/watchlist/replace', {
     method:'POST', headers:{'Content-Type':'application/json'},

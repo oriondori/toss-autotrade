@@ -1,5 +1,6 @@
 dashboard:
-  password: topadmin1!
+  password: Topadmin1!
+  viewer_password: topadmin1!
   session_hours: 72
 live:
   enabled: true

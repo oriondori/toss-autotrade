@@ -19,7 +19,7 @@ runtime: dict = {"account": None, "market": None}
 
 # ── 인증 세션 ──────────────────────────────────────────────
 _CFG_PATH = Path(__file__).parent.parent / "config.yaml"
-_sessions: dict[str, float] = {}   # token → 만료 epoch
+_sessions: dict[str, dict] = {}   # token → {"exp": 만료 epoch, "role": "admin"|"viewer"}
 
 
 def _load_dashboard_cfg() -> dict:
@@ -29,23 +29,45 @@ def _load_dashboard_cfg() -> dict:
         return {}
 
 
-def _check_password(pw: str) -> bool:
+def _check_password(pw: str) -> str | None:
+    """비밀번호 확인 → 역할("admin"/"viewer") 반환, 불일치 시 None."""
     cfg = _load_dashboard_cfg()
-    stored = cfg.get("password", "")
-    if not stored:
-        return True   # 비밀번호 미설정 시 개방
-    return secrets.compare_digest(pw.strip(), stored.strip())
+    admin_pw = cfg.get("password", "")
+    viewer_pw = cfg.get("viewer_password", "")
+    if not admin_pw and not viewer_pw:
+        return "admin"   # 비밀번호 미설정 시 개방
+    pw = pw.strip()
+    if admin_pw and secrets.compare_digest(pw, admin_pw.strip()):
+        return "admin"
+    if viewer_pw and secrets.compare_digest(pw, viewer_pw.strip()):
+        return "viewer"
+    return None
+
+
+def _get_session(request: Request) -> dict | None:
+    token = request.cookies.get("_tat_session")
+    if not token:
+        return None
+    sess = _sessions.get(token)
+    if not sess or time.time() > sess["exp"]:
+        _sessions.pop(token, None)
+        return None
+    return sess
 
 
 def _is_authenticated(request: Request) -> bool:
-    token = request.cookies.get("_tat_session")
-    if not token:
-        return False
-    exp = _sessions.get(token, 0)
-    if time.time() > exp:
-        _sessions.pop(token, None)
-        return False
-    return True
+    return _get_session(request) is not None
+
+
+def _get_role(request: Request) -> str | None:
+    sess = _get_session(request)
+    return sess["role"] if sess else None
+
+
+def _require_admin(request: Request) -> None:
+    """제어성 액션(정지/재개/분석실행/종목교체 등) — 조회 전용 계정 차단."""
+    if _get_role(request) != "admin":
+        raise HTTPException(status_code=403, detail="권한없음")
 
 
 # 인증 불필요 경로
@@ -72,15 +94,16 @@ async def login(request: Request):
     except Exception:
         return JSONResponse({"error": "bad request"}, status_code=400)
 
-    if not _check_password(pw):
+    role = _check_password(pw)
+    if role is None:
         return JSONResponse({"error": "wrong password"}, status_code=401)
 
     cfg = _load_dashboard_cfg()
     ttl = int(cfg.get("session_hours", 72)) * 3600
     token = secrets.token_hex(32)
-    _sessions[token] = time.time() + ttl
+    _sessions[token] = {"exp": time.time() + ttl, "role": role}
 
-    resp = JSONResponse({"ok": True})
+    resp = JSONResponse({"ok": True, "role": role})
     resp.set_cookie(
         "_tat_session", token,
         max_age=ttl, httponly=True, samesite="lax"
@@ -120,7 +143,7 @@ def index() -> FileResponse:
 
 # ---------- 조회 ----------
 @app.get("/api/status")
-def status() -> dict:
+def status(request: Request) -> dict:
     s = dict(state.get())
     try:
         import yaml
@@ -132,6 +155,7 @@ def status() -> dict:
             s["live_symbols"] = live.get("symbols", [])
     except Exception:
         pass
+    s["role"] = _get_role(request) or "admin"
     return s
 
 
@@ -420,7 +444,8 @@ def scanner_results() -> dict:
 
 
 @app.post("/api/scanner/run")
-def scanner_run() -> dict:
+def scanner_run(request: Request) -> dict:
+    _require_admin(request)
     import threading
     from scanner.screener import run_scan
     market = runtime.get("market")
@@ -619,7 +644,8 @@ def recommendations() -> dict:
 
 
 @app.post("/api/recommendations/run")
-def recommendations_run() -> dict:
+def recommendations_run(request: Request) -> dict:
+    _require_admin(request)
     import threading
     from scanner.recommender import run_analysis
     market = runtime.get("market")
@@ -638,6 +664,7 @@ def recommendations_run() -> dict:
 @app.post("/api/watchlist/replace")
 async def watchlist_replace(req: Request) -> dict:
     """기존 종목을 새 종목으로 교체 (config.yaml 업데이트)."""
+    _require_admin(req)
     body = await req.json()
     remove_sym = body.get("remove", "").strip()
     add_sym    = body.get("add", "").strip()
@@ -668,8 +695,9 @@ _collecting: set[str] = set()
 
 
 @app.post("/api/collect/{symbol}")
-def collect_symbol(symbol: str) -> dict:
+def collect_symbol(symbol: str, request: Request) -> dict:
     """단일 종목 캔들 수집 (백그라운드). 서버 실행 중 market 없어도 자체 생성."""
+    _require_admin(request)
     import threading
     from data.collector import collect
 
@@ -713,6 +741,7 @@ def collect_status() -> dict:
 @app.post("/api/scanner/add")
 async def scanner_add(req: Request) -> dict:
     """종목을 config.yaml 워치리스트에 추가."""
+    _require_admin(req)
     body = await req.json()
     symbol = body.get("symbol", "").strip()
     name = body.get("name", symbol)
@@ -899,7 +928,8 @@ def server_time() -> dict:
 
 
 @app.post("/api/control/{action}")
-def control(action: str) -> dict:
+def control(action: str, request: Request) -> dict:
+    _require_admin(request)
     if action == "pause":
         db.log("WARN", "SYS", "사용자 요청: 일시정지")
         return state.set(paused=True)
