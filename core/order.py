@@ -139,7 +139,7 @@ class OrderClient:
                                status="PENDING", client_order_id=client_order_id,
                                reason="Volatility breakout", mode="live")
             # 5분 후 미체결 자동취소 스케줄 (별도 스레드)
-            self._schedule_cancel(order_id, client_order_id, oid, symbol, name)
+            self._schedule_cancel(order_id, oid, symbol, name)
             return {"ok": True, "order_id": order_id, "db_id": oid}
         except Exception as e:
             reason = str(e)
@@ -170,7 +170,7 @@ class OrderClient:
                                order_type="LIMIT", price=limit_price, qty=qty,
                                status="PENDING", client_order_id=client_order_id,
                                reason=reason, mode="live")
-            self._schedule_cancel(order_id, client_order_id, oid, symbol, name)
+            self._schedule_cancel(order_id, oid, symbol, name)
             return {"ok": True, "order_id": order_id, "db_id": oid}
         except Exception as e:
             reason_str = str(e)
@@ -188,25 +188,51 @@ class OrderClient:
             db.log("WARN", "ORDER", f"[LIVE] 취소 실패 {order_id}: {e}")
             return False
 
-    def _schedule_cancel(self, order_id: str, client_order_id: str,
-                         db_id: int, symbol: str, name: str,
-                         wait_sec: int = 300) -> None:
-        """5분 후 미체결 주문 자동취소 (별도 데몬 스레드)."""
+    def _schedule_cancel(self, order_id: str, db_id: int, symbol: str,
+                         name: str, max_wait_sec: int = 300) -> None:
+        """체결 확인 폴링 (별도 데몬 스레드).
+        지정가 즉시체결 유도 주문이라 대부분 1~2초 내 체결됨 — 짧은 간격부터 시작해
+        점점 늘려가며 조회. FILLED되면 DB status/fill_price 갱신, 시간 초과 시 취소."""
         import threading
 
-        def _cancel_if_pending():
-            time.sleep(wait_sec)
-            try:
-                r = self.c.get(f"/api/v1/orders/{order_id}", "ORDER",
-                               need_account=True)
-                status = (r.get("result") or {}).get("status", "")
-                if status in ("PENDING", "PARTIALLY_FILLED", ""):
-                    self.cancel(order_id)
-                    db.log("WARN", "ORDER",
-                           f"[LIVE] {symbol} 미체결 자동취소 (5분 경과)")
-            except Exception:
-                pass
+        def _poll():
+            if not order_id:
+                return
+            interval = 1.0
+            elapsed = 0.0
+            status = ""
+            while elapsed < max_wait_sec:
+                time.sleep(interval)
+                elapsed += interval
+                interval = min(interval * 2, 30.0)
+                try:
+                    r = self.c.get(f"/api/v1/orders/{order_id}", "ORDER",
+                                   need_account=True)
+                    result = r.get("result", {}) if isinstance(r, dict) else {}
+                    status = result.get("status", "")
+                except Exception:
+                    continue
 
-        if order_id:
-            t = threading.Thread(target=_cancel_if_pending, daemon=True)
-            t.start()
+                if status == "FILLED":
+                    execution = result.get("execution") or {}
+                    fill_price = execution.get("averageFilledPrice")
+                    db.update_order(db_id, status="FILLED",
+                                    fill_price=float(fill_price) if fill_price else None)
+                    db.log("INFO", "ORDER",
+                           f"[LIVE] {symbol}({name}) 체결 확인: FILLED"
+                           + (f" @{float(fill_price):,.0f}" if fill_price else ""))
+                    return
+                if status in ("CANCELED", "REJECTED"):
+                    db.update_order(db_id, status=status)
+                    db.log("WARN", "ORDER", f"[LIVE] {symbol}({name}) 주문 {status}")
+                    return
+
+            # 시간 초과 — 여전히 미체결이면 취소
+            if status in ("PENDING", "PARTIALLY_FILLED", ""):
+                self.cancel(order_id)
+                db.update_order(db_id, status="CANCELED")
+                db.log("WARN", "ORDER",
+                       f"[LIVE] {symbol} 미체결 자동취소 ({int(max_wait_sec)}초 경과)")
+
+        t = threading.Thread(target=_poll, daemon=True)
+        t.start()
